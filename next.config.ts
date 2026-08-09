@@ -2,7 +2,7 @@ import type { NextConfig } from "next"
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.swrk.in",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.swrk.in https://checkout.razorpay.com",
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://assets.swrk.in https://img.clerk.com https://github.com https://avatars.githubusercontent.com",
