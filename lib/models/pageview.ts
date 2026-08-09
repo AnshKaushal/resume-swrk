@@ -31,8 +31,8 @@ const pageViewSchema = new Schema(
   }
 );
 
-pageViewSchema.index({ createdAt: 1 });
 // Page views are analytics noise after ~90 days; expire them automatically.
+// The TTL index on createdAt also covers plain time-range queries.
 pageViewSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 // Admin overview counts per-path and per-IP hashes over time windows.
 pageViewSchema.index({ path: 1, createdAt: -1 });
