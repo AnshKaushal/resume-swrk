@@ -64,6 +64,17 @@ export async function parseResume(
 
   switch (mimeType) {
     case "application/pdf": {
+      const workerGlobal = globalThis as unknown as {
+        pdfjsWorker?: { WorkerMessageHandler: unknown };
+      };
+      if (!workerGlobal.pdfjsWorker) {
+        const worker = (await import("pdfjs-dist/legacy/build/pdf.worker.mjs")) as {
+          WorkerMessageHandler: unknown;
+        };
+        workerGlobal.pdfjsWorker = {
+          WorkerMessageHandler: worker.WorkerMessageHandler,
+        };
+      }
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       try {
