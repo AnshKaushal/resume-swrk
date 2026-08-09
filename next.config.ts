@@ -2,13 +2,13 @@ import type { NextConfig } from "next"
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.swrk.in https://checkout.razorpay.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.swrk.in https://*.razorpay.com",
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://assets.swrk.in https://img.clerk.com https://github.com https://avatars.githubusercontent.com",
+  "img-src 'self' data: blob: https://assets.swrk.in https://img.clerk.com https://github.com https://avatars.githubusercontent.com https://*.razorpay.com",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.clerk.accounts.dev https://clerk.swrk.in https://api.razorpay.com https://api.iconify.design https://api.unisvg.com",
-  "frame-src 'self' https://*.clerk.accounts.dev https://clerk.swrk.in https://checkout.razorpay.com",
+  "connect-src 'self' https://*.clerk.accounts.dev https://clerk.swrk.in https://api.iconify.design https://api.unisvg.com https://*.razorpay.com",
+  "frame-src 'self' https://*.clerk.accounts.dev https://clerk.swrk.in https://*.razorpay.com",
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
