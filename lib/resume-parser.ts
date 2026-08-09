@@ -1,4 +1,4 @@
-import { PDFParse } from "pdf-parse";
+import "@/lib/pdf-globals";
 import mammoth from "mammoth";
 
 export type ParsedResume = {
@@ -64,6 +64,7 @@ export async function parseResume(
 
   switch (mimeType) {
     case "application/pdf": {
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       try {
         const result = await parser.getText();
