@@ -205,14 +205,21 @@ function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
-async function dataUrlToFile(
+function dataUrlToFile(
   dataUrl: string,
   name: string,
   type: string,
 ): Promise<File> {
-  const res = await fetch(dataUrl)
-  const blob = await res.blob()
-  return new File([blob], name, { type })
+  const comma = dataUrl.indexOf(",")
+  if (comma === -1) return Promise.reject(new Error("Invalid data URL"))
+  const base64 = dataUrl.slice(comma + 1)
+  const bytes = atob(base64)
+  const arr = new Uint8Array(bytes.length)
+  for (let i = 0; i < bytes.length; i++) {
+    arr[i] = bytes.charCodeAt(i)
+  }
+  const file = new File([arr], name, { type })
+  return Promise.resolve(file)
 }
 
 function readPendingAnalysis(): PendingAnalysis | null {
@@ -315,6 +322,7 @@ export default function AnalysePage() {
   const handleFileSelect = useCallback(
     (next: File | null) => {
       setFile(next)
+      setError("")
       if (next && quotaExhausted && entitlement) {
         setShowUpgradeDialog(true)
       }
@@ -606,6 +614,7 @@ export default function AnalysePage() {
         setTargetRole(pending.targetRole)
         setJobDescription(pending.jobDescription)
         setAiContext(restoredContext)
+        clearPendingAnalysis()
         setError(
           "We couldn't restore your file after sign-in. Please re-upload it.",
         )
@@ -994,6 +1003,8 @@ export default function AnalysePage() {
                 forceRedirectUrl="/analyse"
                 signUpForceRedirectUrl="/analyse"
                 fallbackRedirectUrl="/analyse"
+                transferable={false}
+                withSignUp
                 appearance={{
                   variables: {
                     borderRadius: "0",
