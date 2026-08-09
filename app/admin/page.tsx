@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Users, FileText, IndianRupee, TrendingUp, Eye } from "lucide-react"
+import { Users, FileText, IndianRupee, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -27,13 +27,7 @@ type Overview = {
     byKind: { _id: string; amount: number; count: number }[]
     recent: { kind: string; amount: number; email: string; date: string }[]
   }
-  traffic: {
-    views30d: number
-    uniqueVisitors30d: number
-    viewsToday: number
-    topPaths: { path: string; count: number }[]
-  }
-  daily: { day: string; analyses: number; revenue: number; views: number }[]
+  daily: { day: string; analyses: number; revenue: number }[]
 }
 
 const KIND_LABELS: Record<string, string> = {
@@ -164,12 +158,6 @@ export default function AdminDashboardPage() {
           sub={`₹${data.revenue.last30d.toLocaleString("en-IN")} in 30d`}
           icon={<IndianRupee className="size-5" />}
         />
-        <Stat
-          label="Traffic"
-          value={data.traffic.views30d.toLocaleString()}
-          sub={`${data.traffic.uniqueVisitors30d} visitors · ${data.traffic.viewsToday} today`}
-          icon={<Eye className="size-5" />}
-        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -189,12 +177,6 @@ export default function AdminDashboardPage() {
                 data={data.daily.map((d) => d.analyses)}
                 color="hsl(var(--primary))"
               />
-            </div>
-            <div>
-              <span className="mb-1 block text-xs text-muted-foreground">
-                Page views
-              </span>
-              <MiniBars data={data.daily.map((d) => d.views)} color="#a78bfa" />
             </div>
           </CardContent>
         </Card>
@@ -252,7 +234,7 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
               <Users className="size-4" />
-              Plans & traffic
+              Plans
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -274,24 +256,6 @@ export default function AdminDashboardPage() {
                 {byPlan.pro ?? 0}
               </span>
             </div>
-            {data.traffic.topPaths.length > 0 && (
-              <div className="mt-1 border-t border-border pt-3">
-                <span className="mb-2 block text-xs text-muted-foreground">
-                  Top pages (30d)
-                </span>
-                <div className="flex flex-col gap-1.5">
-                  {data.traffic.topPaths.map((p, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between gap-2 text-xs"
-                    >
-                      <span className="truncate">{p.path}</span>
-                      <span className="shrink-0 tabular-nums">{p.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

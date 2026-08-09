@@ -8,7 +8,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "sonner"
 import Footer from "@/components/footer"
-import { PageViewTracker } from "@/components/page-view-tracker"
 import { ResumePendingAnalysis } from "@/components/resume-pending-analysis"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
@@ -120,7 +119,6 @@ export default function RootLayout({
         >
           <ClerkProvider afterSignOutUrl="/">
             <TooltipProvider>
-              <PageViewTracker />
               <ResumePendingAnalysis />
               <Navbar />
               <div className="flex-1 w-full">{children}</div>

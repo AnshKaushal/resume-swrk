@@ -4,22 +4,15 @@ import db from "@/lib/db";
 import UserModel from "@/lib/models/user";
 import AnalysisModel from "@/lib/models/analysis";
 import PaymentModel from "@/lib/models/payment";
-import PageViewModel from "@/lib/models/pageview";
 
 export const runtime = "nodejs";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function todayStart(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 async function dailySeries() {
   const start = new Date(Date.now() - 13 * DAY_MS);
 
-  const [analyses, revenue, views] = await Promise.all([
+  const [analyses, revenue] = await Promise.all([
     AnalysisModel.aggregate([
       { $match: { createdAt: { $gte: start } } },
       {
@@ -38,15 +31,6 @@ async function dailySeries() {
         },
       },
     ]),
-    PageViewModel.aggregate([
-      { $match: { createdAt: { $gte: start } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          count: { $sum: 1 },
-        },
-      },
-    ]),
   ]);
 
   const byDay = (rows: { _id: string; count?: number; amount?: number }[]) =>
@@ -54,7 +38,6 @@ async function dailySeries() {
 
   const aMap = byDay(analyses);
   const rMap = byDay(revenue);
-  const vMap = byDay(views);
 
   const days: string[] = [];
   for (let i = 13; i >= 0; i--) {
@@ -65,7 +48,6 @@ async function dailySeries() {
     day,
     analyses: aMap[day]?.count ?? 0,
     revenue: rMap[day]?.amount ?? 0,
-    views: vMap[day]?.count ?? 0,
   }));
 }
 
@@ -105,7 +87,7 @@ export async function GET() {
         ).lean(),
       ]);
 
-    const [payments, revenueByKind, revenue30d, revenueTotal, traffic] =
+    const [payments, revenueByKind, revenue30d, revenueTotal] =
       await Promise.all([
         PaymentModel.find().sort({ createdAt: -1 }).limit(50).lean(),
         PaymentModel.aggregate([
@@ -124,31 +106,6 @@ export async function GET() {
         PaymentModel.aggregate([
           { $group: { _id: null, amount: { $sum: "$amount" } } },
         ]),
-        (async () => {
-          const [views30d, unique30d, viewsToday, topPaths] =
-            await Promise.all([
-              PageViewModel.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-              PageViewModel.distinct("ipHash", {
-                createdAt: { $gte: thirtyDaysAgo },
-              }),
-              PageViewModel.countDocuments({ createdAt: { $gte: todayStart() } }),
-              PageViewModel.aggregate([
-                { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-                { $group: { _id: "$path", count: { $sum: 1 } } },
-                { $sort: { count: -1 } },
-                { $limit: 8 },
-              ]),
-            ]);
-          return {
-            views30d,
-            uniqueVisitors30d: unique30d.length,
-            viewsToday,
-            topPaths: topPaths.map((t) => ({
-              path: t._id,
-              count: t.count,
-            })),
-          };
-        })(),
       ]);
 
     const daily = await dailySeries();
@@ -182,7 +139,6 @@ export async function GET() {
           date: p.createdAt,
         })),
       },
-      traffic,
       daily,
     });
   } catch (error) {
