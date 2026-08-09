@@ -264,8 +264,8 @@ export function AnalysisResults({
 
       <div className="grid gap-4 lg:grid-cols-5">
         <ScoreGauge
-          value={unlocked ? projection.currentOverall : (a.scores.value ?? 0)}
-          gained={unlocked ? projection.gained : 0}
+          value={projection.currentOverall}
+          gained={projection.gained}
         />
         <div className="flex flex-col gap-3 lg:col-span-4">
           <Card className="flex-1">
@@ -277,16 +277,8 @@ export function AnalysisResults({
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {MAJOR_SCORES.map((m) => {
-                const base = Math.round(
-                  unlocked
-                    ? projection.sectionBase[m.key]
-                    : (a.majorScores[m.key] ?? 0),
-                )
-                const value = Math.round(
-                  unlocked
-                    ? projection.sectionCurrent[m.key]
-                    : (a.majorScores[m.key] ?? 0),
-                )
+                const base = Math.round(projection.sectionBase[m.key])
+                const value = Math.round(projection.sectionCurrent[m.key])
                 const improved = value > base
                 return (
                   <div key={m.key} className="flex flex-col gap-1.5">
