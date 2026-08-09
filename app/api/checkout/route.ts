@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { PLAN_CONFIG, FULL_ANALYSIS_UNLOCK, type PlanId } from "@/lib/plans"
-import { createCheckoutSession } from "@/lib/razorpay"
+import { createCheckoutSession, getRazorpay } from "@/lib/razorpay"
 import { getOrCreateUser } from "@/lib/analysis-store"
 import UserModel from "@/lib/models/user"
 import AnalysisModel from "@/lib/models/analysis"
@@ -77,15 +77,59 @@ export async function POST(request: NextRequest) {
       user,
       sessionKind === "order" ? "subscription" : "order",
     )
-    // A pending full-analysis unlock order also blocks a plan purchase, since
-    // creating a new order/subscription would overwrite (orphan) that unlock.
-    if (otherPending || (user.razorpayOrderId && user.razorpayAnalysisId)) {
-      return Response.json(
-        {
-          error:
-            "You already have a payment in progress. Complete or cancel it before starting a new one.",
-        },
-        { status: 409 },
+
+    // A subscription conflict is either a live Pro subscription (plan already
+    // pro - never touch it) or an abandoned subscription checkout that was
+    // never charged (Pro is only granted on subscription.charged). The latter
+    // is cleared so the user isn't permanently blocked.
+    if (otherPending?.kind === "subscription") {
+      if (user.plan === "pro") {
+        return Response.json(
+          {
+            error:
+              "You already have a payment in progress. Complete or cancel it before starting a new one.",
+          },
+          { status: 409 },
+        )
+      }
+      await UserModel.updateOne(
+        { _id: user._id },
+        { $set: { razorpaySubscriptionId: null } },
+      )
+    }
+
+    // A pending order of a different kind (one-time pack, or a full-analysis
+    // unlock) also blocks a plan purchase, since creating a new order would
+    // overwrite (orphan) that unlock. Only a provably-paid order is still "in
+    // progress"; an abandoned one (modal dismissed before cancel cleanup
+    // existed) is cleared so the user can start a new checkout.
+    const orderConflict =
+      otherPending?.kind === "order"
+        ? otherPending.id
+        : user.razorpayOrderId && user.razorpayAnalysisId
+          ? user.razorpayOrderId
+          : null
+
+    if (orderConflict) {
+      let paid = false
+      try {
+        const order = await getRazorpay().orders.fetch(orderConflict)
+        paid = (order as { status?: string }).status === "paid"
+      } catch {
+        paid = true // can't verify - assume live rather than orphan a payment
+      }
+      if (paid) {
+        return Response.json(
+          {
+            error:
+              "You already have a payment in progress. Complete or cancel it before starting a new one.",
+          },
+          { status: 409 },
+        )
+      }
+      await UserModel.updateOne(
+        { _id: user._id },
+        { $set: { razorpayOrderId: null, razorpayAnalysisId: null } },
       )
     }
 
@@ -171,17 +215,46 @@ async function startFullAnalysisUnlock(
     })
   }
 
-  // A different checkout is pending - don't orphan it.
-  if (
-    user.razorpayOrderId ||
-    user.razorpaySubscriptionId
-  ) {
-    return Response.json(
-      {
-        error:
-          "You already have a payment in progress. Complete or cancel it before unlocking this analysis.",
-      },
-      { status: 409 },
+  // A different checkout is pending - don't orphan it. Only a provably-paid
+  // order is still "in progress"; abandoned unpaid sessions (modal dismissed
+  // before cancel cleanup existed) are cleared so the user isn't blocked.
+  if (user.razorpayOrderId) {
+    let paid = false
+    try {
+      const order = await getRazorpay().orders.fetch(user.razorpayOrderId)
+      paid = (order as { status?: string }).status === "paid"
+    } catch {
+      paid = true // can't verify - assume live rather than orphan a payment
+    }
+    if (paid) {
+      return Response.json(
+        {
+          error:
+            "You already have a payment in progress. Complete or cancel it before unlocking this analysis.",
+        },
+        { status: 409 },
+      )
+    }
+    await UserModel.updateOne(
+      { _id: user._id },
+      { $set: { razorpayOrderId: null, razorpayAnalysisId: null } },
+    )
+  }
+
+  if (user.razorpaySubscriptionId) {
+    if (user.plan === "pro") {
+      return Response.json(
+        {
+          error:
+            "You already have a payment in progress. Complete or cancel it before unlocking this analysis.",
+        },
+        { status: 409 },
+      )
+    }
+    // Abandoned subscription checkout that was never charged.
+    await UserModel.updateOne(
+      { _id: user._id },
+      { $set: { razorpaySubscriptionId: null } },
     )
   }
 

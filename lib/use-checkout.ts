@@ -46,6 +46,19 @@ function loadRazorpayScript(): Promise<void> {
   })
 }
 
+async function cancelPendingCheckout(data: CheckoutData) {
+  const kind = data.subscriptionId ? "subscription" : "order"
+  try {
+    await fetch("/api/checkout/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind }),
+    })
+  } catch {
+    // ignore cleanup failures; a stale pending session can be cancelled again
+  }
+}
+
 async function confirmPayment(
   response: RazorpayResponse,
   data: CheckoutData,
@@ -91,6 +104,11 @@ export function useCheckout() {
       await loadRazorpayScript()
       if (!window.Razorpay) throw new Error("Payment gateway failed to load.")
 
+      // Once the handler runs a payment actually happened, so a subsequent
+      // modal dismissal must not wipe the pending session (the confirm/webhook
+      // grant path still needs it) nor claim the payment was cancelled.
+      let completed = false
+
       const options: Record<string, unknown> = {
         key: data.keyId,
         amount: data.amount,
@@ -101,6 +119,7 @@ export function useCheckout() {
         theme: { color: "#0069a8" },
         handler: async (raw: unknown) => {
           const response = raw as RazorpayResponse
+          completed = true
           try {
             await confirmPayment(response, data)
             setBusy(false)
@@ -118,7 +137,9 @@ export function useCheckout() {
         modal: {
           ondismiss: () => {
             setBusy(false)
+            if (completed) return
             toast.info("Payment was cancelled!")
+            void cancelPendingCheckout(data)
           },
         },
       }
@@ -133,6 +154,7 @@ export function useCheckout() {
       rzp.on("payment.failed", () => {
         setBusy(false)
         toast.error("Payment failed. Please try again.")
+        void cancelPendingCheckout(data)
       })
       rzp.open()
     },
