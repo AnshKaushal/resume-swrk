@@ -2,10 +2,32 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Users, FileText, IndianRupee, TrendingUp } from "lucide-react"
+import {
+  Users,
+  FileText,
+  IndianRupee,
+  TrendingUp,
+  Eye,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 
 type Overview = {
   users: {
@@ -31,9 +53,61 @@ type Overview = {
 }
 
 const KIND_LABELS: Record<string, string> = {
-  unlock: "₹199 unlock",
+  unlock: "₹99 unlock",
   "one-time": "One-time pack",
   pro: "Pro",
+}
+
+type AdminUser = {
+  id: string
+  clerkId: string
+  email: string
+  firstName: string
+  lastName: string
+  avatarUrl: string
+  plan: string
+  analysesRemaining: number | null
+  paidAnalysesRemaining: number
+  planResetAt: string | null
+  oneTimePurchasedAt: string | null
+  razorpayOrderId: string | null
+  razorpaySubscriptionId: string | null
+  razorpayAnalysisId: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  return `${d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })} ${d.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`
+}
+
+function planBadgeVariant(
+  plan: string,
+): "default" | "secondary" | "outline" | "destructive" | "ghost" | "link" {
+  if (plan === "pro") return "default"
+  if (plan === "one-time") return "outline"
+  return "secondary"
 }
 
 function Stat({
@@ -85,6 +159,9 @@ function MiniBars({ data, color }: { data: number[]; color: string }) {
 export default function AdminDashboardPage() {
   const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState("")
+  const [users, setUsers] = useState<AdminUser[] | null>(null)
+  const [usersError, setUsersError] = useState("")
+  const [selected, setSelected] = useState<AdminUser | null>(null)
 
   useEffect(() => {
     fetch("/api/admin/overview")
@@ -94,6 +171,16 @@ export default function AdminDashboardPage() {
       })
       .then(setData)
       .catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/admin/users")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load users")
+        return res.json()
+      })
+      .then((json) => setUsers(json.users))
+      .catch((e) => setUsersError(e.message))
   }, [])
 
   if (error) {
@@ -259,6 +346,173 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-heading text-xl font-semibold tracking-tight">
+            Users
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Registered users with their plan and usage details.
+          </p>
+        </div>
+
+        {usersError ? (
+          <p className="text-sm text-destructive">{usersError}</p>
+        ) : !users ? (
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : users.length === 0 ? (
+          <Card className="flex flex-col items-center gap-2 p-10 text-center">
+            <p className="text-sm text-muted-foreground">No users yet.</p>
+          </Card>
+        ) : (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Analyses left</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">
+                      {[u.firstName, u.lastName].filter(Boolean).join(" ") ||
+                        "—"}
+                    </TableCell>
+                    <TableCell>{u.email || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={planBadgeVariant(u.plan)}>
+                        {u.plan || "free"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {u.plan === "pro"
+                        ? "∞"
+                        : `${u.paidAnalysesRemaining ?? 0} + ${
+                            u.analysesRemaining ?? 0
+                          }`}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {fmtDate(u.createdAt)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={`View ${u.email || u.id} details`}
+                        onClick={() => setSelected(u)}
+                      >
+                        <Eye />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
+      </div>
+
+      <Dialog
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null)
+        }}
+      >
+        <DialogContent className="max-w-lg!">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="size-4" />
+              {selected
+                ? [selected.firstName, selected.lastName]
+                    .filter(Boolean)
+                    .join(" ") || selected.email
+                : "User"}
+            </DialogTitle>
+            <DialogDescription>
+              {selected?.email} · joined {fmtDate(selected?.createdAt ?? null)}
+            </DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <div className="flex flex-col gap-3">
+              <DetailRow label="Plan" value={selected.plan || "free"} />
+              <DetailRow
+                label="Free analyses remaining"
+                value={
+                  selected.analysesRemaining === null
+                    ? "unlimited"
+                    : String(selected.analysesRemaining)
+                }
+              />
+              <DetailRow
+                label="Paid analyses remaining"
+                value={String(selected.paidAnalysesRemaining)}
+              />
+              <DetailRow
+                label="Plan resets"
+                value={fmtDate(selected.planResetAt)}
+              />
+              <DetailRow
+                label="One-time pack purchased"
+                value={fmtDate(selected.oneTimePurchasedAt)}
+              />
+              <DetailRow
+                label="Last updated"
+                value={fmtDateTime(selected.updatedAt)}
+              />
+              <DetailRow
+                label="Razorpay order"
+                value={selected.razorpayOrderId ?? "—"}
+                mono
+              />
+              <DetailRow
+                label="Razorpay subscription"
+                value={selected.razorpaySubscriptionId ?? "—"}
+                mono
+              />
+              <DetailRow
+                label="Razorpay analysis"
+                value={selected.razorpayAnalysisId ?? "—"}
+                mono
+              />
+              <DetailRow label="Clerk id" value={selected.clerkId} mono />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function DetailRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-border/60 pb-2 last:border-b-0">
+      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={`break-all text-sm ${mono ? "font-mono text-xs" : ""}`}
+      >
+        {value}
+      </span>
     </div>
   )
 }
