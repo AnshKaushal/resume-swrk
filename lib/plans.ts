@@ -87,10 +87,10 @@ export const PLAN_LIST: PlanConfig[] = [
   PLAN_CONFIG["one-time"],
 ]
 
-/** Per-analysis full unlock (₹199) - not a PlanId, kept out of pricing cards. */
+/** Per-analysis full unlock (₹99) - not a PlanId, kept out of pricing cards. */
 export const FULL_ANALYSIS_UNLOCK = {
-  price: 199,
-  amountPaise: 19900,
+  price: 99,
+  amountPaise: 9900,
   checkoutLabel: "Unlock full analysis",
   info: "Unlock all sections, scores, and premium fixes for this one analysis.",
 } as const
